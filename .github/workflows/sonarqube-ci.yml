@@ -1,0 +1,69 @@
+name: Maven Build & SonarQube
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build-sonar:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout code
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # 2. Setup Java
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # 3. Cache Maven dependencies
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      # 4. Clean build
+      - name: Maven Clean
+        run: mvn clean
+
+      # 5. Run SonarQube Analysis
+      - name: Run SonarQube Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          mvn sonar:sonar \
+            -Dsonar.projectKey=MevanProjectSonarQ \
+            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+
+      # 6. Wait for SonarQube Quality Gate result
+      - name: Check SonarQube Quality Gate
+        env:
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          echo "⏳ Waiting for SonarQube Quality Gate..."
+          sleep 15  # wait for analysis to be processed
+          
+          PROJECT_KEY="MevanProjectSonarQ"
+          STATUS=$(curl -s -u $SONAR_TOKEN: \
+            "$SONAR_HOST_URL/api/qualitygates/project_status?projectKey=$PROJECT_KEY" \
+            | jq -r '.projectStatus.status')
+
+          echo "Quality Gate Status: $STATUS"
+
+          if [ "$STATUS" != "OK" ]; then
+            echo "❌ Quality Gate failed!"
+            exit 1
+          else
+            echo "✅ Quality Gate Passed!"
+          fi
