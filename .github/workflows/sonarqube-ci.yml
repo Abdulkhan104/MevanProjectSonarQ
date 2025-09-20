@@ -31,7 +31,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      # 4. Clean build
+      # 4. Maven Clean
       - name: Maven Clean
         run: mvn clean
 
@@ -39,11 +39,7 @@ jobs:
       - name: Run SonarQube Analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          mvn sonar:sonar \
-            -Dsonar.projectKey=MevanProjectSonarQ \
-            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+        run: mvn sonar:sonar -Dsonar.projectKey=MevanProjectSonarQ -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} -Dsonar.login=$SONAR_TOKEN
 
       # 6. Install jq for JSON parsing
       - name: Install jq
