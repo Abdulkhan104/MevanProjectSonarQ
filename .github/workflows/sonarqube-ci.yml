@@ -35,7 +35,7 @@ jobs:
       - name: Maven Clean
         run: mvn clean
 
-      # 5. Run SonarQube Analysis
+      # 5. Run SonarQube Analysi
       - name: Run SonarQube Analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
