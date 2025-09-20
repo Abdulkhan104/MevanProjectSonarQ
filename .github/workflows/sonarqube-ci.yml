@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout cod
+      # 1. Checkout code
       - name: Checkout Repository
         uses: actions/checkout@v3
 
@@ -35,7 +35,7 @@ jobs:
       - name: Maven Clean
         run: mvn clean
 
-      # 5. Run SonarQube Analysi
+      # 5. Run SonarQube Analysis
       - name: Run SonarQube Analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -45,23 +45,33 @@ jobs:
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
-      # 6. Wait for SonarQube Quality Gate result
+      # 6. Install jq for JSON parsing
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      # 7. Wait and check SonarQube Quality Gate
       - name: Check SonarQube Quality Gate
         env:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           echo "⏳ Waiting for SonarQube Quality Gate..."
-          sleep 15  # wait for analysis to be processed
           
           PROJECT_KEY="MevanProjectSonarQ"
-          STATUS=$(curl -s -u $SONAR_TOKEN: \
-            "$SONAR_HOST_URL/api/qualitygates/project_status?projectKey=$PROJECT_KEY" \
-            | jq -r '.projectStatus.status')
+          MAX_RETRIES=10
+          RETRY_DELAY=10
+          STATUS="PENDING"
+          COUNT=0
 
-          echo "Quality Gate Status: $STATUS"
+          while [[ "$STATUS" == "PENDING" && $COUNT -lt $MAX_RETRIES ]]; do
+            sleep $RETRY_DELAY
+            STATUS=$(curl -s -u $SONAR_TOKEN: "$SONAR_HOST_URL/api/qualitygates/project_status?projectKey=$PROJECT_KEY" \
+              | jq -r '.projectStatus.status')
+            echo "Attempt $((COUNT+1)): Quality Gate Status = $STATUS"
+            COUNT=$((COUNT+1))
+          done
 
-          if [ "$STATUS" != "OK" ]; then
+          if [[ "$STATUS" != "OK" ]]; then
             echo "❌ Quality Gate failed!"
             exit 1
           else
