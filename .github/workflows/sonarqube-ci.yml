@@ -43,7 +43,7 @@ jobs:
 
       # 6. Install jq for JSON parsing
       - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
+        run: sudo apt-get update && sudo apt-get install -y jq curl
 
       # 7. Wait and check SonarQube Quality Gate
       - name: Check SonarQube Quality Gate
@@ -61,14 +61,14 @@ jobs:
 
           while [[ "$STATUS" == "PENDING" && $COUNT -lt $MAX_RETRIES ]]; do
             sleep $RETRY_DELAY
-            STATUS=$(curl -s -u $SONAR_TOKEN: "$SONAR_HOST_URL/api/qualitygates/project_status?projectKey=$PROJECT_KEY" \
+            STATUS=$(curl -s -u "$SONAR_TOKEN:" "$SONAR_HOST_URL/api/qualitygates/project_status?projectKey=$PROJECT_KEY" \
               | jq -r '.projectStatus.status')
             echo "Attempt $((COUNT+1)): Quality Gate Status = $STATUS"
             COUNT=$((COUNT+1))
           done
 
-          if [[ "$STATUS" != "OK" ]]; then
-            echo "❌ Quality Gate failed!"
+          if [[ -z "$STATUS" || "$STATUS" != "OK" ]]; then
+            echo "❌ Quality Gate failed or status not retrieved!"
             exit 1
           else
             echo "✅ Quality Gate Passed!"
